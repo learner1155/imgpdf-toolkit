@@ -9,7 +9,6 @@ import PDFMerger from './pages/PDFMerger';
 import PDFExtractor from './pages/PDFExtractor';
 import PDFConverter from './pages/PDFConverter';
 import ImageCompressor from './pages/ImageCompressor';
-import PDFCompressor from './pages/PDFCompressor';
 
 function App() {
   return (
@@ -49,7 +48,6 @@ function App() {
               <Route path="/pdf-merger" element={<PDFMerger />} />
               <Route path="/pdf-extractor" element={<PDFExtractor />} />
               <Route path="/pdf-converter" element={<PDFConverter />} />
-              <Route path="/pdf-compressor" element={<PDFCompressor />} />
             </Routes>
           </main>
         </div>

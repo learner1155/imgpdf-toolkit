@@ -5,8 +5,7 @@ import { Minimize2, Settings, TrendingDown } from 'lucide-react';
 import axios from 'axios';
 import FileDropzone from '../components/FileDropzone';
 import ProgressBar from '../components/ProgressBar';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import API_URL from '../config/api';
 
 const ImageCompressor = () => {
   const [files, setFiles] = useState([]);
@@ -22,14 +21,6 @@ const ImageCompressor = () => {
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
   const handleCompress = async () => {
     if (files.length === 0) {
       toast.error('Please select at least one image');
@@ -41,7 +32,7 @@ const ImageCompressor = () => {
 
     try {
       const compressedResults = [];
-      
+
       for (let i = 0; i < files.length; i++) {
         const formData = new FormData();
         formData.append('image', files[i]);
@@ -60,8 +51,7 @@ const ImageCompressor = () => {
       }
 
       toast.success(`${compressedResults.length} image${compressedResults.length > 1 ? 's' : ''} compressed! Downloading...`);
-      
-      // Auto download all compressed files
+
       compressedResults.forEach((result, index) => {
         setTimeout(() => {
           const link = document.createElement('a');
@@ -72,12 +62,14 @@ const ImageCompressor = () => {
           document.body.removeChild(link);
         }, index * 500);
       });
-      
-      // Clear files after download
+
       setFiles([]);
     } catch (error) {
-      console.error('Error compressing image:', error);
-      toast.error(error.response?.data?.error || 'Failed to compress image');
+      if (error.code === 'ERR_NETWORK' || !error.response) {
+        toast.error('Cannot connect to server. Make sure the backend is running on port 5000.');
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to compress image');
+      }
     } finally {
       setLoading(false);
       setProgress(0);
@@ -98,9 +90,9 @@ const ImageCompressor = () => {
       >
         {/* Header */}
         <div style={{ marginBottom: '32px' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             gap: '12px',
             marginBottom: '8px',
           }}>
@@ -127,12 +119,12 @@ const ImageCompressor = () => {
           <FileDropzone
             onFilesSelected={handleFilesSelected}
             accept={{
-              'image/*': ['.jpg', '.jpeg', '.webp', '.tiff', '.tif', '.avif']
+              'image/*': ['.png', '.jpg', '.jpeg', '.webp', '.tiff', '.tif', '.avif']
             }}
             files={files}
             onRemoveFile={handleRemoveFile}
             title="Drop images here"
-            subtitle="JPG, WebP, TIFF, AVIF supported"
+            subtitle="PNG, JPG, WebP, TIFF, AVIF supported"
           />
 
           {loading && <ProgressBar progress={progress} status="Compressing images..." />}
@@ -140,9 +132,9 @@ const ImageCompressor = () => {
 
         {/* Settings */}
         <div className="glass-card" style={{ padding: '24px', marginBottom: '24px' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             gap: '8px',
             marginBottom: '20px',
           }}>
@@ -151,9 +143,9 @@ const ImageCompressor = () => {
           </div>
 
           <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
               fontWeight: '500',
               marginBottom: '8px',
               color: 'var(--text-secondary)',
@@ -171,8 +163,8 @@ const ImageCompressor = () => {
                 accentColor: '#22c55e',
               }}
             />
-            <div style={{ 
-              display: 'flex', 
+            <div style={{
+              display: 'flex',
               justifyContent: 'space-between',
               fontSize: '12px',
               color: 'var(--text-secondary)',

@@ -5,8 +5,7 @@ import { Scissors, Download, FileText, Settings } from 'lucide-react';
 import axios from 'axios';
 import FileDropzone from '../components/FileDropzone';
 import ProgressBar from '../components/ProgressBar';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import API_URL from '../config/api';
 
 const PDFExtractor = () => {
   const [files, setFiles] = useState([]);
@@ -78,7 +77,11 @@ const PDFExtractor = () => {
       toast.success(mode === 'split' ? 'PDF split successfully!' : 'Pages extracted successfully!');
     } catch (error) {
       console.error('Error processing PDF:', error);
-      toast.error(error.response?.data?.error || 'Failed to process PDF');
+      if (error.code === 'ERR_NETWORK' || !error.response) {
+        toast.error('Cannot connect to server. Make sure the backend is running on port 5000.');
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to process PDF');
+      }
     } finally {
       setLoading(false);
     }

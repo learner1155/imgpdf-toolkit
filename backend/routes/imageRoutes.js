@@ -5,7 +5,6 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
-// Helper function to safely delete a file with delay
 const safeUnlink = (filePath) => {
   setTimeout(() => {
     try {
@@ -19,7 +18,7 @@ const safeUnlink = (filePath) => {
   }, 2000);
 };
 
-// Helper function to create BMP from raw pixel data
+// Manual BMP encoder (sharp doesn't support BMP output)
 const createBMP = (data, width, height, channels) => {
   const rowSize = Math.ceil((width * 3) / 4) * 4; // BMP rows are padded to 4 bytes
   const pixelDataSize = rowSize * height;
@@ -66,7 +65,6 @@ const createBMP = (data, width, height, channels) => {
   return buffer;
 };
 
-// Convert image format
 router.post('/convert', (req, res, next) => {
   req.upload.single('image')(req, res, async (err) => {
     if (err) {
@@ -99,49 +97,57 @@ router.post('/convert', (req, res, next) => {
 
       // Convert to specified format
       const qualityNum = quality ? parseInt(quality) : 90;
-      
+
+      // Helper: clone + flatten alpha to white (for formats that don't support transparency)
+      const flat = () => sharpInstance.clone().flatten({ background: { r: 255, g: 255, b: 255 } });
+
       switch (format) {
         case 'jpeg':
         case 'jpg':
-          await sharpInstance.jpeg({ quality: qualityNum }).toFile(outputPath);
+          await flat().jpeg({ quality: qualityNum }).toFile(outputPath);
           break;
         case 'png':
-          await sharpInstance.png({ compressionLevel: Math.floor((100 - qualityNum) / 11) }).toFile(outputPath);
+          await sharpInstance.clone().png({ compressionLevel: Math.floor((100 - qualityNum) / 11) }).toFile(outputPath);
           break;
         case 'webp':
-          await sharpInstance.webp({ quality: qualityNum }).toFile(outputPath);
+          await sharpInstance.clone().webp({ quality: qualityNum }).toFile(outputPath);
           break;
         case 'gif':
-          await sharpInstance.gif().toFile(outputPath);
+          await sharpInstance.clone().gif().toFile(outputPath);
           break;
         case 'tiff':
         case 'tif':
-          await sharpInstance.tiff({ quality: qualityNum }).toFile(outputPath);
+          await flat().tiff({ quality: qualityNum }).toFile(outputPath);
           break;
         case 'avif':
-          await sharpInstance.avif({ quality: qualityNum }).toFile(outputPath);
+          await sharpInstance.clone().avif({ quality: qualityNum }).toFile(outputPath);
           break;
-        case 'bmp':
-          // Convert to raw pixel data and create BMP file
-          const { data, info } = await sharpInstance.raw().toBuffer({ resolveWithObject: true });
+        case 'bmp': {
+          const { data, info } = await flat().toColourspace('srgb').raw().toBuffer({ resolveWithObject: true });
           const bmpBuffer = createBMP(data, info.width, info.height, info.channels);
           fs.writeFileSync(outputPath, bmpBuffer);
           break;
+        }
         case 'ico':
-          // For ICO, resize to standard icon size and save as PNG (rename to .ico)
-          await sharpInstance.resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toFile(outputPath);
+          await sharpInstance.clone().resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toFile(outputPath);
           break;
+        case 'svg': {
+          const inputExt = path.extname(req.file.originalname).toLowerCase();
+          if (inputExt === '.svg') {
+            fs.writeFileSync(outputPath, inputBuffer);
+          } else {
+            const pngBuf = await sharpInstance.clone().png().toBuffer();
+            const meta = await sharp(pngBuf).metadata();
+            const b64 = pngBuf.toString('base64');
+            fs.writeFileSync(outputPath, `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${meta.width}" height="${meta.height}" viewBox="0 0 ${meta.width} ${meta.height}">\n  <image width="${meta.width}" height="${meta.height}" href="data:image/png;base64,${b64}"/>\n</svg>`);
+          }
+          break;
+        }
         default:
-          await sharpInstance.png().toFile(outputPath);
+          await sharpInstance.clone().png().toFile(outputPath);
       }
 
-      // Clean up input file safely
       safeUnlink(inputPath);
-
-      // Increment stats
-      if (global.incrementStat) {
-        global.incrementStat('imageConversions');
-      }
 
       res.json({
         success: true,
@@ -155,7 +161,6 @@ router.post('/convert', (req, res, next) => {
   });
 });
 
-// Batch convert images
 router.post('/batch-convert', (req, res, next) => {
   req.upload.array('images', 20)(req, res, async (err) => {
     if (err) {
@@ -177,41 +182,57 @@ router.post('/batch-convert', (req, res, next) => {
         const outputFileName = `${uuidv4()}.${format || 'png'}`;
         const outputPath = path.join(req.outputDir, outputFileName);
 
-        // Read file into buffer first
+
         const inputBuffer = fs.readFileSync(file.path);
-        let sharpInstance = sharp(inputBuffer);
+        const sharpInstance = sharp(inputBuffer);
+
+        // Helper: clone + flatten alpha to white (for formats that don't support transparency)
+        const flat = () => sharpInstance.clone().flatten({ background: { r: 255, g: 255, b: 255 } });
 
         switch (format) {
           case 'jpeg':
           case 'jpg':
-            await sharpInstance.jpeg({ quality: qualityNum }).toFile(outputPath);
+            await flat().jpeg({ quality: qualityNum }).toFile(outputPath);
             break;
           case 'png':
-            await sharpInstance.png({ compressionLevel: Math.floor((100 - qualityNum) / 11) }).toFile(outputPath);
+            await sharpInstance.clone().png({ compressionLevel: Math.floor((100 - qualityNum) / 11) }).toFile(outputPath);
             break;
           case 'webp':
-            await sharpInstance.webp({ quality: qualityNum }).toFile(outputPath);
+            await sharpInstance.clone().webp({ quality: qualityNum }).toFile(outputPath);
             break;
           case 'gif':
-            await sharpInstance.gif().toFile(outputPath);
+            await sharpInstance.clone().gif().toFile(outputPath);
             break;
           case 'tiff':
           case 'tif':
-            await sharpInstance.tiff({ quality: qualityNum }).toFile(outputPath);
+            await flat().tiff({ quality: qualityNum }).toFile(outputPath);
             break;
           case 'avif':
-            await sharpInstance.avif({ quality: qualityNum }).toFile(outputPath);
+            await sharpInstance.clone().avif({ quality: qualityNum }).toFile(outputPath);
             break;
-          case 'bmp':
-            const { data: bmpData, info: bmpInfo } = await sharpInstance.raw().toBuffer({ resolveWithObject: true });
+          case 'bmp': {
+            const { data: bmpData, info: bmpInfo } = await flat().toColourspace('srgb').raw().toBuffer({ resolveWithObject: true });
             const bmpBuf = createBMP(bmpData, bmpInfo.width, bmpInfo.height, bmpInfo.channels);
             fs.writeFileSync(outputPath, bmpBuf);
             break;
+          }
           case 'ico':
-            await sharpInstance.resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toFile(outputPath);
+            await sharpInstance.clone().resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toFile(outputPath);
             break;
+          case 'svg': {
+            const inputExt = path.extname(file.originalname).toLowerCase();
+            if (inputExt === '.svg') {
+              fs.writeFileSync(outputPath, inputBuffer);
+            } else {
+              const pngBuf = await sharpInstance.clone().png().toBuffer();
+              const meta = await sharp(pngBuf).metadata();
+              const b64 = pngBuf.toString('base64');
+              fs.writeFileSync(outputPath, `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${meta.width}" height="${meta.height}" viewBox="0 0 ${meta.width} ${meta.height}">\n  <image width="${meta.width}" height="${meta.height}" href="data:image/png;base64,${b64}"/>\n</svg>`);
+            }
+            break;
+          }
           default:
-            await sharpInstance.png().toFile(outputPath);
+            await sharpInstance.clone().png().toFile(outputPath);
         }
 
         results.push({
@@ -221,7 +242,7 @@ router.post('/batch-convert', (req, res, next) => {
         });
       }
 
-      // Clean up input files safely
+
       filesToClean.forEach(f => safeUnlink(f));
 
       res.json({
@@ -235,7 +256,6 @@ router.post('/batch-convert', (req, res, next) => {
   });
 });
 
-// Compress image
 router.post('/compress', (req, res, next) => {
   req.upload.single('image')(req, res, async (err) => {
     if (err) {
@@ -256,10 +276,10 @@ router.post('/compress', (req, res, next) => {
 
       const qualityNum = quality ? parseInt(quality) : 70;
 
-      // Get original size before processing
+
       const originalSize = fs.statSync(inputPath).size;
 
-      // Read file into buffer first
+
       const inputBuffer = fs.readFileSync(inputPath);
       let sharpInstance = sharp(inputBuffer);
       
@@ -267,6 +287,9 @@ router.post('/compress', (req, res, next) => {
         case 'jpeg':
         case 'jpg':
           await sharpInstance.jpeg({ quality: qualityNum }).toFile(outputPath);
+          break;
+        case 'png':
+          await sharpInstance.png({ compressionLevel: Math.floor((100 - qualityNum) / 11) }).toFile(outputPath);
           break;
         case 'webp':
           await sharpInstance.webp({ quality: qualityNum }).toFile(outputPath);
@@ -282,16 +305,10 @@ router.post('/compress', (req, res, next) => {
           await sharpInstance.jpeg({ quality: qualityNum }).toFile(outputPath);
       }
 
-      // Get compressed size
+
       const compressedSize = fs.statSync(outputPath).size;
 
-      // Clean up input file safely
       safeUnlink(inputPath);
-
-      // Increment stats
-      if (global.incrementStat) {
-        global.incrementStat('imageCompressions');
-      }
 
       res.json({
         success: true,
@@ -308,7 +325,6 @@ router.post('/compress', (req, res, next) => {
   });
 });
 
-// Resize image
 router.post('/resize', (req, res, next) => {
   req.upload.single('image')(req, res, async (err) => {
     if (err) {
@@ -327,7 +343,7 @@ router.post('/resize', (req, res, next) => {
       const outputFileName = `${uuidv4()}-resized.${ext}`;
       const outputPath = path.join(req.outputDir, outputFileName);
 
-      // Read file into buffer first
+
       const inputBuffer = fs.readFileSync(inputPath);
       
       await sharp(inputBuffer)
@@ -338,7 +354,7 @@ router.post('/resize', (req, res, next) => {
         )
         .toFile(outputPath);
 
-      // Clean up input file safely
+
       safeUnlink(inputPath);
 
       res.json({
@@ -353,7 +369,6 @@ router.post('/resize', (req, res, next) => {
   });
 });
 
-// Get image info
 router.post('/info', (req, res, next) => {
   req.upload.single('image')(req, res, async (err) => {
     if (err) {
@@ -368,11 +383,11 @@ router.post('/info', (req, res, next) => {
 
       inputPath = req.file.path;
       
-      // Read file into buffer first
+
       const inputBuffer = fs.readFileSync(inputPath);
       const metadata = await sharp(inputBuffer).metadata();
 
-      // Clean up input file safely
+
       safeUnlink(inputPath);
 
       res.json({

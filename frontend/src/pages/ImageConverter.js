@@ -5,8 +5,7 @@ import { FileImage, RefreshCw, Settings } from 'lucide-react';
 import axios from 'axios';
 import FileDropzone from '../components/FileDropzone';
 import ProgressBar from '../components/ProgressBar';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import API_URL from '../config/api';
 
 const ImageConverter = () => {
   const [files, setFiles] = useState([]);
@@ -26,6 +25,7 @@ const ImageConverter = () => {
     { value: 'tiff', label: 'TIFF' },
     { value: 'avif', label: 'AVIF' },
     { value: 'ico', label: 'ICO' },
+    { value: 'svg', label: 'SVG' },
   ];
 
   const handleFilesSelected = (newFiles) => {
@@ -111,7 +111,11 @@ const ImageConverter = () => {
       }
     } catch (error) {
       console.error('Error converting image:', error);
-      toast.error(error.response?.data?.error || 'Failed to convert image');
+      if (error.code === 'ERR_NETWORK' || !error.response) {
+        toast.error('Cannot connect to server. Make sure the backend is running on port 5000.');
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to convert image');
+      }
     } finally {
       setLoading(false);
     }
@@ -151,7 +155,7 @@ const ImageConverter = () => {
             <h1 style={{ fontSize: '28px', fontWeight: '700' }}>Image Converter</h1>
           </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: '16px' }}>
-            Convert images between PNG, JPG, WebP, GIF, BMP, TIFF, AVIF, and ICO formats
+            Convert images between PNG, JPG, WebP, GIF, BMP, TIFF, AVIF, ICO, and SVG formats
           </p>
         </div>
 
@@ -160,12 +164,12 @@ const ImageConverter = () => {
           <FileDropzone
             onFilesSelected={handleFilesSelected}
             accept={{
-              'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.tif', '.avif', '.ico', '.psd', '.eps']
+              'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.tif', '.avif', '.ico', '.svg']
             }}
             files={files}
             onRemoveFile={handleRemoveFile}
             title="Drop images here"
-            subtitle="PNG, JPG, WebP, GIF, BMP, TIFF, AVIF, ICO, PSD, EPS supported"
+            subtitle="PNG, JPG, WebP, GIF, BMP, TIFF, AVIF, ICO, SVG supported"
           />
 
           {loading && <ProgressBar progress={progress} status="Converting images..." />}
@@ -217,7 +221,7 @@ const ImageConverter = () => {
                 marginBottom: '8px',
                 color: 'var(--text-secondary)',
               }}>
-                {(format === 'png' || format === 'gif' || format === 'ico' || format === 'bmp') ? 'Quality (N/A)' : `Quality (${quality}%)`}
+                {(format === 'png' || format === 'gif' || format === 'ico' || format === 'bmp' || format === 'svg') ? 'Quality (N/A)' : `Quality (${quality}%)`}
               </label>
               <input
                 type="range"
@@ -225,15 +229,15 @@ const ImageConverter = () => {
                 max="100"
                 value={quality}
                 onChange={(e) => setQuality(parseInt(e.target.value))}
-                disabled={format === 'gif' || format === 'png' || format === 'ico' || format === 'bmp'}
+                disabled={format === 'gif' || format === 'png' || format === 'ico' || format === 'bmp' || format === 'svg'}
                 style={{
                   width: '100%',
                   accentColor: 'var(--primary)',
-                  opacity: (format === 'gif' || format === 'png' || format === 'ico' || format === 'bmp') ? 0.5 : 1,
+                  opacity: (format === 'gif' || format === 'png' || format === 'ico' || format === 'bmp' || format === 'svg') ? 0.5 : 1,
                 }}
               />
               <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                {(format === 'png' || format === 'gif' || format === 'ico') ? 'This format does not support quality settings' :
+                {(format === 'png' || format === 'gif' || format === 'ico' || format === 'svg') ? 'This format does not support quality settings' :
                  'Lower = smaller file, higher = better quality'}
               </p>
             </div>

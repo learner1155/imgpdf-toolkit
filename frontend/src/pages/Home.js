@@ -55,14 +55,6 @@ const Home = () => {
       color: '#ec4899',
       gradient: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
     },
-    {
-      path: '/pdf-compressor',
-      icon: Minimize2,
-      title: 'PDF Compressor',
-      description: 'Reduce PDF file size while maintaining quality',
-      color: '#0ea5e9',
-      gradient: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
-    },
   ];
 
   const benefits = [
@@ -335,7 +327,7 @@ const Home = () => {
         borderTop: '1px solid rgba(99, 102, 241, 0.1)',
       }}>
         <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-          © 2025 ImgPDF. Built with ❤️ using React & Node.js
+          © 2026 ImgPDF. Built with ❤️ using React & Node.js
         </p>
       </footer>
     </div>

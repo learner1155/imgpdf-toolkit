@@ -1,102 +1,162 @@
-# 🚀 Deployment Guide for ImgPDF
+# Deployment Guide — Render (Free Tier)
 
-## Quick Deploy Options
+This project is configured for **full-stack deployment on Render** — the Express backend serves the React frontend's built files as a single Web Service.
 
-### Option 1: Vercel (Frontend) + Railway (Backend) - RECOMMENDED
+---
 
-#### Step 1: Push to GitHub
+## Prerequisites
+
+- A **GitHub** account (free)
+- A **Render** account (free) — sign up at [render.com](https://render.com) using GitHub
+- **Git** installed on your computer
+- **Node.js** installed (you already have this)
+
+---
+
+## Step 1: Create a GitHub Repository
+
+1. Go to [github.com/new](https://github.com/new)
+2. Name it something like `imgpdf-toolkit`
+3. Keep it **Public** or Private
+4. **Do NOT** initialize with README (we already have one)
+5. Click **Create repository**
+
+---
+
+## Step 2: Push Your Code to GitHub
+
+Open a terminal **in your project folder** and run:
+
 ```bash
 git init
 git add .
 git commit -m "Initial commit"
 git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/imgpdf.git
+git remote add origin https://github.com/YOUR_USERNAME/imgpdf-toolkit.git
 git push -u origin main
 ```
 
-#### Step 2: Deploy Backend to Railway
-1. Go to [railway.app](https://railway.app)
-2. Click "New Project" → "Deploy from GitHub repo"
-3. Select your repo and choose the `backend` folder
-4. Railway will auto-detect Node.js
-5. Add environment variable: `PORT=5000`
-6. Copy your Railway URL (e.g., `https://imgpdf-backend.up.railway.app`)
-
-#### Step 3: Update Frontend API URL
-Before deploying frontend, update the API URL in your frontend code.
-Create a `.env` file in the frontend folder:
-```
-REACT_APP_API_URL=https://your-railway-url.up.railway.app
-```
-
-#### Step 4: Deploy Frontend to Vercel
-1. Go to [vercel.com](https://vercel.com)
-2. Click "Import Project" → Select your GitHub repo
-3. Set root directory to `frontend`
-4. Add environment variable: `REACT_APP_API_URL=https://your-railway-url.up.railway.app`
-5. Click Deploy!
+> Replace `YOUR_USERNAME` with your actual GitHub username and `imgpdf-toolkit` with your repo name.
 
 ---
 
-### Option 2: Render.com (Both in one place)
+## Step 3: Deploy on Render
 
-1. Go to [render.com](https://render.com)
-2. **For Backend:**
-   - New → Web Service
-   - Connect GitHub repo
-   - Root Directory: `backend`
-   - Build Command: `npm install`
-   - Start Command: `node server.js`
-   
-3. **For Frontend:**
-   - New → Static Site
-   - Connect GitHub repo
-   - Root Directory: `frontend`
-   - Build Command: `npm install && npm run build`
-   - Publish Directory: `build`
+1. Go to [render.com](https://render.com) and sign in with GitHub
+2. Click **"New +"** → **"Web Service"**
+3. Connect your GitHub account if not already connected
+4. Find and select your `imgpdf-toolkit` repository
+5. Fill in the settings:
+
+| Setting | Value |
+|---------|-------|
+| **Name** | `imgpdf-toolkit` (or any name you like) |
+| **Region** | Choose the closest to you |
+| **Branch** | `main` |
+| **Runtime** | `Node` |
+| **Build Command** | `npm run render:build` |
+| **Start Command** | `npm run render:start` |
+| **Instance Type** | **Free** |
+
+6. Click **"Create Web Service"**
+7. Wait for the build to finish (first build takes a few minutes)
+8. Your app is live! Render gives you a URL like `https://imgpdf-toolkit.onrender.com`
 
 ---
 
-### Option 3: Self-Hosting (VPS/Cloud Server)
+## Step 4: Verify Deployment
 
-#### Build for Production
+1. Open your Render URL (e.g., `https://imgpdf-toolkit.onrender.com`)
+2. Test each feature:
+   - Upload and convert an image
+   - Compress an image
+   - Merge two PDFs
+   - Extract PDF pages
+   - Convert/rotate a PDF
+
+---
+
+## How It Works
+
+| Component | Local Dev | Render Production |
+|-----------|-----------|-------------------|
+| Frontend  | `localhost:3000` (React dev server) | Static files from `frontend/build` served by Express |
+| Backend   | `localhost:5000` (Express server) | Express server on Render |
+| File Storage | `backend/uploads/` & `backend/output/` | Same dirs (persistent within deploy) |
+| API URL   | `http://localhost:5000` | Same domain (relative URLs) |
+
+---
+
+## Notes
+
+- **Free tier spin-down**: Render free services spin down after 15 minutes of inactivity. The first request after spin-down takes ~30 seconds to respond.
+- **Auto-deploys**: Every push to `main` on GitHub will automatically trigger a new deploy on Render.
+- **Environment variables**: If needed, you can add environment variables in the Render dashboard under your service → "Environment".
+
+---
+
+## Free Tier Limitations
+
+| Limit | Value |
+|-------|-------|
+| Request body size | **4.5 MB** (max upload file size) |
+| Function timeout | **10 seconds** per request |
+| Deployments | **Unlimited** |
+| Bandwidth | **100 GB/month** |
+| File storage | **Ephemeral** (`/tmp`, cleared between invocations) |
+
+> Files larger than ~4.5 MB won't upload. Heavy PDF processing may hit the 10-second timeout. For most everyday use, this works fine.
+
+---
+
+## Redeploying After Changes
+
+After editing code locally:
+
 ```bash
-# Build frontend
-cd frontend
-npm run build
-
-# The build folder is ready to be served
+git add .
+git commit -m "Your change description"
+git push
 ```
 
-#### Using PM2 (Process Manager)
-```bash
-# Install PM2
-npm install -g pm2
-
-# Start backend
-cd backend
-pm2 start server.js --name "imgpdf-backend"
-
-# Serve frontend with a static server
-npm install -g serve
-cd frontend
-pm2 start "serve -s build -l 3000" --name "imgpdf-frontend"
-```
+Vercel **automatically redeploys** when you push to the `main` branch.
 
 ---
 
-## Environment Variables
+## Custom Domain (Optional)
 
-### Backend (.env)
-```
-PORT=5000
-NODE_ENV=production
-```
+1. In Vercel dashboard → your project → **Settings** → **Domains**
+2. Add your custom domain (e.g., `imgpdf.yourdomain.com`)
+3. Follow the DNS instructions Vercel provides
+4. Free SSL is included automatically
 
-### Frontend (.env)
-```
-REACT_APP_API_URL=https://your-backend-url.com
-```
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| Build fails | Check Vercel build logs; ensure `frontend/package.json` has correct dependencies |
+| API returns 500 | Check Vercel function logs (Dashboard → Functions tab) |
+| Upload fails | File may exceed 4.5 MB limit on free tier |
+| Slow processing | May be hitting the 10-second timeout; try smaller files |
+| CORS error | Set `CORS_ORIGIN` env var in Vercel to your deployment URL |
+
+### Viewing Logs
+1. Go to Vercel Dashboard → your project
+2. Click **"Deployments"** → latest deployment
+3. Click **"Functions"** tab to see serverless function logs
+
+---
+
+## Environment Variables (Optional)
+
+You generally **don't need to set any** for basic deployment. But if needed:
+
+| Variable | Where | Purpose |
+|----------|-------|---------|
+| `CORS_ORIGIN` | Vercel → Settings → Env Vars | Restrict API access to specific domains |
+| `REACT_APP_API_URL` | Vercel → Settings → Env Vars | Override API URL (leave empty for same-domain) |
 
 ---
 

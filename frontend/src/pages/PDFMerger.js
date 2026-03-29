@@ -5,8 +5,7 @@ import { Merge, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 import axios from 'axios';
 import FileDropzone from '../components/FileDropzone';
 import ProgressBar from '../components/ProgressBar';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import API_URL from '../config/api';
 
 const PDFMerger = () => {
   const [files, setFiles] = useState([]);
@@ -64,7 +63,11 @@ const PDFMerger = () => {
       setFiles([]);
     } catch (error) {
       console.error('Error merging PDFs:', error);
-      toast.error(error.response?.data?.error || 'Failed to merge PDFs');
+      if (error.code === 'ERR_NETWORK' || !error.response) {
+        toast.error('Cannot connect to server. Make sure the backend is running on port 5000.');
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to merge PDFs');
+      }
     } finally {
       setLoading(false);
     }
